@@ -1,0 +1,352 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Short Sectioned Assignment
+% LaTeX Template
+% Version 1.0 (5/5/12)
+%
+% This template has been downloaded from:
+% http://www.LaTeXTemplates.com
+%
+% Original author:
+% Frits Wenneker (http://www.howtotex.com)
+%
+% License:
+% CC BY-NC-SA 3.0 (http://creativecommons.org/licenses/by-nc-sa/3.0/)
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%----------------------------------------------------------------------------------------
+%	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+
+\documentclass[paper=a4, fontsize=11pt]{scrartcl} % A4 paper and 11pt font size
+
+\usepackage[T1]{fontenc} % Use 8-bit encoding that has 256 glyphs
+%\usepackage{fourier} % Use the Adobe Utopia font for the document - comment this line to return to the LaTeX default
+\usepackage[english]{babel} % English language/hyphenation
+\usepackage{amsmath,amsfonts,amsthm} % Math packages
+\usepackage{graphicx}
+
+\usepackage{lipsum} % Used for inserting dummy 'Lorem ipsum' text into the template
+\usepackage[margin=0.5in]{geometry}
+\usepackage{sectsty} % Allows customizing section commands
+\allsectionsfont{\centering \normalfont\scshape} % Make all sections centered, the default font and small caps
+
+\usepackage{fancyhdr} % Custom headers and footers
+\pagestyle{fancyplain} % Makes all pages in the document conform to the custom headers and footers
+\fancyhead{} % No page header - if you want one, create it in the same way as the footers below
+\fancyfoot[L]{} % Empty left footer
+\fancyfoot[C]{} % Empty center footer
+\fancyfoot[R]{\thepage} % Page numbering for right footer
+\renewcommand{\headrulewidth}{0pt} % Remove header underlines
+\renewcommand{\footrulewidth}{0pt} % Remove footer underlines
+\setlength{\headheight}{13.6pt} % Customize the height of the header
+
+\numberwithin{equation}{section} % Number equations within sections (i.e. 1.1, 1.2, 2.1, 2.2 instead of 1, 2, 3, 4)
+\numberwithin{figure}{section} % Number figures within sections (i.e. 1.1, 1.2, 2.1, 2.2 instead of 1, 2, 3, 4)
+\numberwithin{table}{section} % Number tables within sections (i.e. 1.1, 1.2, 2.1, 2.2 instead of 1, 2, 3, 4)
+
+\setlength\parindent{0pt} % Removes all indentation from paragraphs - comment this line for an assignment with lots of text
+
+%----------------------------------------------------------------------------------------
+%	TITLE SECTION
+%----------------------------------------------------------------------------------------
+
+\newcommand{\horrule}[1]{\rule{\linewidth}{#1}} % Create horizontal rule command with 1 argument of height
+
+\title{	
+\normalfont \normalsize 
+%\textsc{university, school or department name} \\ [25pt] % Your university, school and/or department name(s)
+\horrule{0.5pt} \\[0.4cm] % Thin top horizontal rule
+\huge MLPR Assignment} \\ % The assignment title
+\horrule{2pt} \\[0.5cm] % Thick bottom horizontal rule
+}
+
+\author{Alexander McMurray\\
+Student Number: 1367329} % Your name
+
+\date{\normalsize\today} % Today's date or a custom date
+
+\begin{document}
+
+\maketitle % Print the title
+
+%----------------------------------------------------------------------------------------
+%	PROBLEM 1
+%----------------------------------------------------------------------------------------
+
+\section{\textbf{Question 1 (10 marks)}}
+
+\fbox{\parbox{\linewidth}{\textrm{(a)(i)Measure the peak voltage response (relative to the resting potential) in the
+soma and in the dendrite at the location of the synapse. Examine and explain their ratio as
+function of the synaptic time-constant. \textit{(5 points)} }}}\\
+\\
+
+To begin I created a soma (length$=10\mu m$, diameter$=10\mu m$) and a dendrite (length=$500\mu m$, diameter=$1\mu m$). In order to get an accurate simulation it is required that the length of a segment be much less than the electrotonic length such that the change in the voltage is negligible across the segment and thus modelling it as an isopotential segment is acceptable. Ensuring that all segments have $\textrm{length}<= \lambda / 20$ is deemed sufficient for a valid approximation.\\
+
+The electrotonic length, $\lambda$, may be calculated by the equation:
+\begin{equation}
+\lambda = \sqrt{\frac{d r_m}{4 r_i}}=\sqrt{\frac{(d \cdot 10^{-4}) g_{pas}^{-1}}{4 R_a}}
+\label{eq:lambda}
+\end{equation}
+
+The $10^{-4}$ factor converts the diameter from $\mu m$ (used by NEURON) to $cm$ thus ensuring that the units are consistent (obtaining $\lambda$ in $cm$), $r_m$ and $r_i$ are the membrane and intracellular resitivities (specific resistances), $g_{pas}$ is the specific conductance of the passive channels ($g_{pas}=0.0005 ~S~cm^{-2}$ was used in both dendrite and soma), $R_a$ is the specific axial resistance (NEURON's default value of $35.4 \Omega~cm$ was used in both dendrite and soma), $d$ is the diameter.\\
+
+For the soma this yielded a value of $\lambda_{soma}/20 = 594 \mu m$  which is considerably greater than the soma length of $10\mu m$ and thus the soma may be accurately modeled by a single isopotential compartment (i.e. $\textrm{nseg}_{\textrm{soma}}=1$).\\
+
+However for the dendrite it is found that $\lambda_{dend}/20=18.79\mu m$. Therefore to meet the requirement that no segment is larger than $\lambda / 20$ we require:
+\begin{equation}
+\textrm{nseg}_{\textrm{dend}} = \texttt{ceil}\left( \frac{500}{18.79} \right ) = 27
+\end{equation}
+where \texttt{ceil()} is the ceiling function (i.e. rounds up its argument).\\
+
+The dendrite and soma were then connected and a synapse created halfway along the dendrite. The \texttt{ExpSyn} synapse model was used, this instantaneously sets its conductance to a value determined by the connection weight, $w$, at the start of a synaptic event after which it decays away exponentially\footnote{ \label{neurondoc} NEURON 7.3 documentation, \texttt{http://www.neuron.yale.edu/}}:
+\begin{equation}
+g_{syn}= w e^{\frac{-t}{\tau_{syn}}}
+\label{eq:gsyn}
+\end{equation} 
+where $\tau_{syn}$ is the synaptic time constant.\\
+
+The synaptic current is then determined by:
+\begin{equation}
+I_{syn} = g_{syn}(V - E_{syn}) 
+\label{eq:Isyn}
+\end{equation}
+where $E_{syn}$ is the synaptic reversal potential.\\
+
+Therefore when $\tau_{syn}$ is very short, the Excitatory Post-Synaptic Potential (EPSP) is of short duration (i.e. a sharper waveform, see Figure \ref{fig:vtracegraph}) which means it consists of mostly high frequency components. As the passive properties of the membrane result in cable filtering which acts approximately like a low-pass filter\footnote{Neural Computation lecture notes, Mark van Rossum, Chapter 2.3} one would expect the sharper EPSP's generated with a small $\tau_{syn}$ to be more strongly attenuated than the broader EPSP's generated with a large $\tau_{syn}$ which consist of lower frequency components.\\
+
+\begin{figure}[!h]
+\centering
+\includegraphics[width=0.6\textwidth]{traces2.pdf}
+  \caption{Voltage traces (relative to the resting potential) with respect to time. Dendritic response recorded at synapse site (halfway along the dendrite) shown in red. Somatic responses recorded at centre of soma shown in blue. Solid lines show $\tau_{syn}=0.1 ms$, dashed lines show $\tau_{syn}=5 ms$ }
+  \label{fig:vtracegraph}
+\end{figure}
+
+
+This is exactly what is observed when we investigate the ratio of the peak dendritic and somatic voltage responses as a function of the synaptic time constant in the simulations (see Figure \ref{fig:ratiograph}). The case where $g_{pas}=0~ S~cm^{-2}$ was also plotted to show that the value of the ratio (i.e. the fraction of the EPSP that reaches the soma) is approximately unity when there is no leakage through the passive channels (note that some charge is still lost to the capacitators - this has a larger effect for the smaller EPSPs seen at low $\tau_{syn}$ values and is negligible at higher values).\\
+
+\begin{figure}[!h]
+\centering
+\includegraphics[width=0.6\textwidth]{ratiographboth.pdf}
+  \caption{The ratio of the peak dendritic and somatic voltage responses (relative to the resting potential) as a function of the synaptic time constant. Solid red line is $g_{pas}=0.0005~ S~cm^{-2} $, dashed blue line is $g_{pas}=0~ S~cm^{-2} $. }
+  \label{fig:ratiograph}
+\end{figure}
+
+
+%----------------------------------------------------------------------------------------
+%	PROBLEM 2
+%----------------------------------------------------------------------------------------
+\newpage
+\section{\textbf{Question 2}}
+
+\fbox{\parbox{\linewidth}{\textrm{From the simulation determine how much current flows into the neuron at the
+synapse and how much flows into the soma. (Various approaches are possible to measure this;
+state the one you used.) Again research the role of the synaptic time-constant. \textit{(5 points)} }}}\\
+\\
+
+To determine the synaptic current (i.e. the current which flows into the neuron at the synapse) we could use Equation \ref{eq:Isyn} assuming that $V(t) \approx V_{rest} = -70mV$ which would be a valid approximation if $\tau_{syn} << \tau_{mem}$ as then the membrane potential would not have sufficient time to respond while the synaptic current is flowing in and thus the membrane potential would essentially remain at $V_{rest}$.\\
+
+In the real world you cannot just assume your synapse is \texttt{ExpSyn} and will follow Equation \ref{eq:Isyn}, however if you knew that $\tau_{syn} << \tau_{mem}$ then you could use a voltage clamp at $-70mV$ and record the current, safe in the knowledge that fixing the voltage would not have a major effect on the data as the driving force would not have changed much anyway. However even then, carrying out electrophysiology experiments on single synapses is very difficult and typically only possible on large synapses such as the Calyx of Held in the mammalian auditory system\footnote{Jakob Heinzle, ETH Z\"{u}rich,\textit{Synaptic Plasticity and 
+Neuromodulation},\\ \texttt{http://www.biomed.ee.ethz.ch/research/tnu/teaching/schizophrenia/heinzlespn}, (accessed 21/10/2013)}. One can of course investigate the total synaptic input (i.e. input of all synapses) using a somatic voltage clamp but a voltage clamp placed in the soma does not provide great control on the voltage in the dendrite. (Williams et al. (2008))\footnote{S.R. Williams et al. (2008), Direct measurement of somatic voltage clamp errors in central neurons, \textit{Nature Neuroscience}, Vol. \textbf{11}, No. 7}\\
+
+The membrane time constant is given by:
+\begin{equation}
+\tau_m = R_m C_m = g_{pas}^{-1} c_m
+\label{eq:taum}
+\end{equation}
+where $R_m$ and $C_m$ are the membrane resistance and capacitance respectively, $c_m$ is the specific membrane capacitance and $g_{pas}$ is as defined in Equation \ref{eq:lambda}.\\
+
+The values of $g_{pas}$ and $c_m$ are the same in the soma and the dendrite and thus the membrane time constant will be the same for both. Using our values of $g_{pas}=0.0005~ S~cm^{-2}$ and $c_m= 1 \mu F~cm^{-2}$ it is found that $\tau_m = 2 ms$. This is on a similar scale to the values for the synaptic time constant that we wish to investigate and thus we cannot make the assumption that $V(t) \approx V_{rest}$ for the duration of the synaptic current injection.\\
+
+However as this is a simulation, we are not constrained by the inconveniences of experimental realities so we can record \texttt{esyn.i} directly in NEURON.\\
+
+To record the current that flows into the soma, we simply record both the capacitative and passive currents that flow out of the soma and sum them as the output current must equal the input current by Kirchhoff's current law. There is a slight complication as whilst \texttt{esyn.i} is given directly in $nA$, \texttt{soma.i\_cap} and \texttt{soma.i\_pas} are given in $mA~cm^{-2}$ and thus the soma currents must be multiplied by the surface area of the soma, and the units scaled such that they may be compared. NEURON models using cylindrical compartments and thus the surface area is given by $A = \pi \cdot d \cdot L$ as ends of cylinders are not counted in the area.\footnote{See Footnote 1}.\\
+
+
+
+\begin{figure}[!h]
+\centering
+\includegraphics[width=0.6\textwidth]{syncurtraces1.pdf}
+  \caption{The synaptic current. Red is $\tau_{syn}=0.01ms$, blue is $\tau_{syn}=0.1ms$, green is $\tau_{syn}=1ms$, black is $\tau_{syn}=10ms$.}
+  \label{fig:syncurtrace1}
+\end{figure}
+
+
+\begin{figure}[!h]
+\centering
+\includegraphics[width=0.6\textwidth]{somacurtraces1.pdf}
+  \caption{The somatic current. Red is $\tau_{syn}=0.01ms$, blue is $\tau_{syn}=0.1ms$, green is $\tau_{syn}=1ms$, black is $\tau_{syn}=10ms$. Note this is an outward current as it is the sum of \texttt{soma.i\_cap} and \texttt{soma.i\_pas}, by Kirchhoff's Current Law, this is the same as the inward current, although obviously that would have opposite sign as it is inward. }
+  \label{fig:somacurtrace1}
+\end{figure}
+
+On investigation of these currents we see that as expected the synaptic current is much larger than the somatic current. This is because there is leakage between the synapse and the soma and indeed it would be impossible for the somatic current to be greater than the synaptic current. Increasing values of $\tau_{syn}$ do not affect the peak synaptic current (see Figure \ref{fig:syncurtrace1}) as this is determined by the weight of the synapse connection, but larger $\tau_{syn}$ values result in broader current traces as it takes longer for the conductance (and thus current) to decrease.\\
+
+For the somatic current we notice that increasing $\tau_{syn}$ values result in a larger peak - this is expected as there is more current injected in total and the waveforms for higher $\tau_{syn}$ are broader and thus suffer less from the low-pass filtering effect of the passive cable as discussed in Question 1.
+
+
+
+%----------------------------------------------------------------------------------------
+%	PROBLEM 3
+%----------------------------------------------------------------------------------------
+\newpage
+\section{\textbf{Question 3}}
+
+\fbox{\parbox{\linewidth}{\textrm{Assume, rather coarsely, that the voltage has reached steady state at the peak of the somatic response. Further assume that the voltage in the soma is at the resting voltage. Calculate analytically the voltage as a function of position in this case, as far as possible. Compare to the simulations. \textit{(5 points)} }}}\\
+\\
+
+To determine the steady-state voltage in the dendrite as a function of space we can use the following solution for the space from the soma to the synapse as we have known voltages at the soma and the synapse to use as arbitrary boundary conditions\footnote{Koch, Christof. (1999), \textit{Biophysics of Computation}, Chapter 2.2 Linear Cable Theory, Steady-State Solutions, 1st ed., Oxford University Press}:
+
+\begin{equation}
+V(X)= \frac{V_0 \sinh (L-X) + V_L \sinh (X) }{\sinh (L)}
+\label{eq:koch}
+\end{equation}
+where $X=x/\lambda$, $V_0$ is the value of the voltage at $X=0$ (i.e. the synapse), $L$ is the distance to the end of the dendrite from the synapse (in units of $\lambda$) and $V_L$ is the value of the voltage at the end of the dendrite.\\
+
+I measured $V_0 = 14.22 mV$ from the peak in the simulation, at first I assumed $V_L$  to be zero (remember these are relative to the resting potential) but this did not result in a good fit (I presume because it is too poor an assumption) and so I measured $V_L = 10mV$ from the simulation data. $L$ is determined by halving the length of the dendrite as the synapse is halfway down, and dividing it by $\lambda$.\\
+
+For the length from the synapse to the distal end of the dendrite I used the sealed-end boundary condition, as we know the voltage at the synapse and we know that $\frac{dV}{dx}=0$ at the distal (from the soma) end of the dendrite. This has the following solution\footnote{See Footnote 6.}:
+
+\begin{equation}
+V(X)= V_0\frac{\cosh(L-X)}{\cosh (L)}
+\label{eq:koch2}
+\end{equation}
+with the same definitions as in Equation \ref{eq:koch}.\\
+
+% \begin{figure}[h]
+% \centering
+% \includegraphics[width=0.6\textwidth]{analvspace.pdf}
+%   \caption{The analytical calculation of the steady-state voltage $V(x)$ in the dendrite, relative to the resting potential. Distance is given in terms of the electrotonic length, $\lambda$ }
+%   \label{fig:analvspace}
+% \end{figure}
+
+
+% \begin{figure}[h]
+% \centering
+% \includegraphics[width=0.6\textwidth]{simvspace.pdf}
+%   \caption{The steady-state voltage $V(x)$ in the dendrite (relative to the resting potential) obtained from simulations. Distance is given in terms of the electrotonic length, $\lambda$}
+%   \label{fig:simvspace}
+% \end{figure}
+
+
+\begin{figure}[!h]
+\centering
+\includegraphics[width=0.6\textwidth]{corrsimvspaceboth.pdf}
+  \caption{The steady-state voltage $V(x)$ in the dendrite (relative to the resting potential). Distance is given in terms of the electrotonic length, $\lambda$. Soma is located at $x=-0.66\lambda$. Simulation data in red, analytical fit in blue.}
+  \label{fig:simvspaceboth}
+\end{figure}
+
+
+To ensure we have reached steady-state in the simulation I used an extremely large value for the synaptic time constant of $\tau_{syn}=100s$ such that the current is essentially constant. Then I took the voltage as a function of distance across the dendrite at the relatively large time $t=1s$ to ensure that the system had settled into the steady-state.\\
+
+In general there is close agreement between the analytical values and those from the simulation. We see that for the simulations we have a number of discrete steps due to the fact that the simulation treats the dendrite as a series of equipotential compartments (see Figure \ref{fig:simvspaceboth}). This effect could be reduced by increasing the value of nseg but I left it at \texttt{nseg=27} to illustrate the discrete nature of the simulation.\\
+
+We also notice that the voltage does not decay symmetrically either side of the injection point. This is because the soma (located at $x=-0.66\lambda$) has some finite resistance (arbitrary boundary condition) unlike the sealed end of the dendrite which effectively has an infinite resistance (sealed-end boundary condition) thus not permitting current flow and retaining more charge and hence a higher voltage.\\ 
+
+
+%----------------------------------------------------------------------------------------
+%	PROBLEM 4
+%----------------------------------------------------------------------------------------
+\newpage
+\section{\textbf{Question 4}}
+
+\fbox{\parbox{\linewidth}{\textrm{Compare the peak somatic voltage response (relative to the resting potential) for AMPA and NMDA synapses when you vary their synaptic conductance. Explain the shape of the plot. \textit{(5 points)} }}}\\
+\\
+
+I placed an NMDA synapse and an AMPA synapse both halfway along the dendrite. I investigated the voltage responses separately (i.e. set $\texttt{nmdasyn1.gmax}=0$ while varying \texttt{ampasyn1.gmax} and vice versa) this yielded Figure \ref{fig:vgplot}. The voltage response of the NMDA synapses rises approximately linearly with increasing synaptic conductance, whereas that of the AMPA synapses rises sharply (but approximately linearly) and then begins to flatten out.\\
+
+\begin{figure}[!h]
+\centering
+\includegraphics[width=0.6\textwidth]{vgplot.pdf}
+  \caption{The peak somatic voltage response (relative to the resting potential) as a function of \texttt{gmax}. NMDA synapses only is shown in blue, AMPA synapses only is shown in red.}
+  \label{fig:vgplot}
+\end{figure}
+
+Then I plotted a 3D plot shown in (Figure \ref{fig:gvmatplot} as a heat-map) to display how the peak somatic voltage response changes when the NMDA and AMPA synaptic conductances are varied together.\\
+
+\begin{figure}[!h]
+\centering
+\includegraphics[width=0.5\textwidth]{gvmatplot.pdf}
+  \caption{The peak somatic voltage response (relative to the resting potential) as a function of \texttt{gmax}. This heat-map shows the effect of varying the NMDA and AMPA synaptic conductances simultaneously}
+  \label{fig:gvmatplot}
+\end{figure}
+
+AMPA synapses act on a much shorter timescale than NMDA due to its higher glutamate binding rate, $\alpha$, and dissociation rate, $\beta$. This means that more of the channels are able to open when the short burst of glutamate arrives resulting in a higher synaptic current and thus a higher peak response. The peak response graph begins to flatten out at very high conductances as the electromotive force, $(V-E_{rev})$, reduces for higher voltages and so increasing the conductance begins to have less of an effect on the peak voltage response.\\
+
+The NMDA synapses are slower and thus not as many open in response to the brief glutamate puff, which combined with the additional Mg voltage-dependent block (which is considerable given the neuron is at resting potential) means that less of the channels open resulting in a smaller response. For NMDA we see a linear increase in peak somatic voltage response with increasing conductance even at high conductances because insufficient channels are open to appreciably effect the driving force and so it remains a linear relation to the conductance.\\
+
+However, we expect a non-linear effect for NMDA as if the conductance is raised sufficiently high, then it should mean that the initial binding of the glutamate to available channels (those for which the Mg block is already removed, as it is a stochastic process) is able to increase the post-synaptic potential and thus remove the Mg block from more NMDA channels allowing for a larger peak. This would be observed in the $V_{peak}$ versus \texttt{gmax} graph as a sharp increase in the peak response with increasing conductance beyond a certain conductance value, although it would eventually level off due to the effect of the reduced driving force as we saw for AMPA.\\
+
+\begin{figure}[!h]
+\centering
+\includegraphics[width=0.5\textwidth]{vgnmdaplotlong.pdf}
+  \caption{The peak somatic voltage response (relative to the resting potential) as a function of \texttt{gmax}. NMDA synapses alone were simulated over a greater range of \texttt{gmax} values in order to investigate the non-linear effects due to the Mg voltage block.}
+  \label{fig:vgnmdaplotlong}
+\end{figure}
+
+I suspected that this might be observed at much higher conductance values than we investigated with AMPA due to the effect of the Mg block and the slow timescale, so I ran the simulations again for NMDA covering a greater range of conductance values. This yielded Figure \ref{fig:vgnmdaplotlong} which shows the effects I expected and discussed above.
+
+
+%----------------------------------------------------------------------------------------
+%	PROBLEM 5
+%----------------------------------------------------------------------------------------
+\newpage
+\section{\textbf{Question 5}}
+
+\fbox{\parbox{\linewidth}{\textrm{Examine the role of the synapse location on the NMDA response in the soma. \textit{(5 points)} }}}\\
+\\
+
+Plotting the peak somatic voltage response as a function of the distance of the NMDA synapse from the soma yielded Figure \ref{fig:vnmdaspace}. As expected the peak response declines with increasing distance due to the leakiness of the cable. There is a very slight increase at the very end as there the current can only flow in the direction towards the soma and not propagate in both directions across the dendrite as the far end is sealed (effectively infinite resistance).\\
+
+
+\begin{figure}[!h]
+\centering
+\includegraphics[width=0.6\textwidth]{vnmdaspace.pdf}
+  \caption{The peak somatic voltage response (relative to the resting potential) as a function of the distance from the soma to the synapse. Note the discrete nature of the isopotential segments leads to the discontinuous appearance of the plot.}
+  \label{fig:vnmdaspace}
+\end{figure}
+
+Plotting some representative somatic voltage traces at certain distances of the synapse resulted in Figure \ref{fig:vnmdatrace}. As expected, increasing distance results in a decreased peak and a broader response as it is subject to more cable filtering as discussed in Question 1. Although it is worth noting that even when moving the synapse across the entire dendrite the effect isn't that huge, this is because the NMDA responses are quite broad and small anyway so therefore consist mostly of low frequencies and have a small electromotive force and so the effects of cable filtering are reduced.\\
+
+For higher conductance values the decrease remains more linear, as the effects of cable filtering remain significant even over long distances due to the sharper voltage waveform and the higher peak (therefore higher component frequencies and higher electromotive force).\\
+
+
+
+\begin{figure}[!h]
+\centering
+\includegraphics[width=0.6\textwidth]{vnmdatrace.pdf}
+  \caption{Somatic voltage responses (relative to the resting potential) at varying distances from the soma to the synapse. In red is a distance of $0\mu m$, green is $125\mu m$, blue is $250\mu m$, magenta is $375\mu m$ and black is $500\mu m$. }
+  \label{fig:vnmdatrace}
+\end{figure}
+
+
+
+%----------------------------------------------------------------------------------------
+%	PROBLEM 6
+%----------------------------------------------------------------------------------------
+\newpage
+\section{\textbf{Question 6}}
+\fbox{\parbox{\linewidth}{\textrm{Argue whether or not the effects observed are important for real neurons. \textit{(5 points)} }}}\\
+\\
+The low-pass filter effect of cable filtering is very important in real neurons as it means that sharp waveforms (with high frequency components) are more strongly attenuated and thus for a signal to reach the soma with an appreciable strength it is better for it to be broader, this places an effective constraint on the time-scale of synaptic events as it means you cannot just use extremely short, high magnitude synaptic currents which if possible would allow for a faster time-scale of computation. So in effect it places another limit on the timescale of activity in the brain (joined by others such as the refractory periods, vesicle recycling time etc.)\\
+
+
+We observed that distal synapses had a smaller effect on the somatic voltage than proximal ones for a given synaptic response. This is of vital importance to real neurons because it means that you can have effects such as directional selectivity as if you activate a series of synapses one after the other travelling towards the soma their EPSPs will sum and are therefore more likely to exceed the threshold voltage and trigger a spike, whereas activating the synapses in the one after another travelling away from the soma, their PSPs will not sum but will arrive and decay at the soma individually, failing to reach threshold (see Figure \ref{fig:simpledirectional}) . This is thought to be the basis of directional selectivity in retinal ganglion cells (Rall, 1964)\footnote{See \textit{Distinctive Roles for Dendrites in Neuronal
+Computation}, Rinzel J., SIAM News, Vol. \textbf{40}, No. 2, March 2007}.\\
+
+
+
+
+
+The importance of synaptic position increases even more when we consider the possibility of inhibitory synapses, as an inhibitory synapse placed proximal to the soma can reduce the effects of all the synaptic inputs before it, whereas a distal inhibitory synapse has relatively little effect. This consideration leads to the \textbf{On-the-path theorem}\footnote{Koch, Christof. (1999), \textit{Biophysics of Computation}, Chapter 5 Synaptic interactions in a passive dendritic tree, 1st ed., Oxford University Press} which states that ``\textit{the location where inhibition is maximally effective is always on the direct path of the excitatory synapse to the soma.}'' \\
+
+Indeed, if the position of the synapse did not matter then point neuron models (that do not consider the spatial distribution of the synaptic inputs) would suffice to simulate biological systems. The perceptron is essentially a point neuron model and forms the basis of Artificial Neural Networks, which (although powerful) have failed to capture the complexity of the biological brain. The positional dependence is one of many features (others being non-linear summation etc.) that allow for dendritic computation i.e. dendrites can perform computational operations on inputs by themselves - they are not simply passive messengers to the soma.\\
+
+Although such complexity makes modelling the brain a greater challenge it also vastly increases the brain's capabilities. I remain optimistic about progress in modelling the brain and do not believe it is as Ian Stewart said: ``\textit{If our brains were simple enough for us to understand them, we'd be so simple that we couldn't.}'' \footnote{Jack Cohen and Ian Stewart (1994), \textit{The Collapse of Chaos: Discovering Simplicity in a Complex World}, 1st ed., Penguin Books}
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.6\textwidth]{simpledirectional.png}
+  \caption{Directional selectivity in retinal ganglion cells. From \textit{Synapses, Neurons and Brains} Coursera course (\texttt{https://www.coursera.org}) by Prof. Idan Segev, Hebrew University of Jerusalem}
+  \label{fig:simpledirectional}
+\end{figure}
+
+\end{document}
